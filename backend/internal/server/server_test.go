@@ -1,14 +1,25 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 )
 
+// fakePinger lets tests decide whether the "database" is up.
+type fakePinger struct {
+	err error
+}
+
+func (f fakePinger) Ping(ctx context.Context) error {
+	return f.err
+}
+
 func TestRoutes(t *testing.T) {
-	handler := New()
+	handler := New(fakePinger{})
 
 	tests := []struct {
 		name       string
@@ -35,23 +46,45 @@ func TestRoutes(t *testing.T) {
 	}
 }
 
-func TestHealthResponseBody(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
-	rec := httptest.NewRecorder()
-
-	New().ServeHTTP(rec, req)
-
-	if got := rec.Header().Get("Content-Type"); got != "application/json" {
-		t.Errorf("Content-Type = %q, want %q", got, "application/json")
+func TestHealthCheck(t *testing.T) {
+	tests := []struct {
+		name       string
+		dbErr      error
+		wantStatus int
+		wantBody   healthResponse
+	}{
+		{
+			name:       "database reachable",
+			dbErr:      nil,
+			wantStatus: http.StatusOK,
+			wantBody:   healthResponse{Status: "ok", Service: "nexpulse", Database: "ok"},
+		},
+		{
+			name:       "database unreachable",
+			dbErr:      errors.New("connection refused"),
+			wantStatus: http.StatusServiceUnavailable,
+			wantBody:   healthResponse{Status: "degraded", Service: "nexpulse", Database: "unreachable"},
+		},
 	}
 
-	var got healthResponse
-	if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
-		t.Fatalf("could not decode response body: %v", err)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+			rec := httptest.NewRecorder()
 
-	want := healthResponse{Status: "ok", Service: "nexpulse"}
-	if got != want {
-		t.Errorf("body = %+v, want %+v", got, want)
+			New(fakePinger{err: tt.dbErr}).ServeHTTP(rec, req)
+
+			if rec.Code != tt.wantStatus {
+				t.Errorf("status = %d, want %d", rec.Code, tt.wantStatus)
+			}
+
+			var got healthResponse
+			if err := json.NewDecoder(rec.Body).Decode(&got); err != nil {
+				t.Fatalf("could not decode response body: %v", err)
+			}
+			if got != tt.wantBody {
+				t.Errorf("body = %+v, want %+v", got, tt.wantBody)
+			}
+		})
 	}
 }
