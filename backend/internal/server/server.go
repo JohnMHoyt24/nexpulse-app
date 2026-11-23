@@ -42,7 +42,7 @@ func (s *Server) healthHandler(w http.ResponseWriter, r *http.Request) {
 	status := http.StatusOK
 
 	if err := s.db.Ping(ctx); err != nil {
-		log.Printf("health check: datbase ping failed: %v", err)
+		log.Printf("health check: database ping failed: %v", err)
 		resp.Status = "degraded"
 		resp.Database = "unreachable"
 		status = http.StatusServiceUnavailable
