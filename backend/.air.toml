@@ -1,5 +1,9 @@
 #:schema https://json.schemastore.org/any.json
 
+# Config for air (https://github.com/air-verse/air), the live-reload tool used in
+# development. Run `air` from the backend directory: it rebuilds ./cmd/api into
+# tmp/ and restarts the server whenever a watched file changes.
+
 env_files = []
 root = "."
 testdata_dir = "testdata"
@@ -32,6 +36,7 @@ tmp_dir = "tmp"
   send_interrupt = false
   stop_on_error = false
 
+  # Windows overrides: the binary needs an .exe extension and backslash paths.
   [build.windows]
     args_bin = []
     bin = "tmp\\main.exe"

@@ -10,14 +10,18 @@ import (
 )
 
 // fakePinger lets tests decide whether the "database" is up.
+// A nil err simulates a healthy database; any other value simulates a failure.
 type fakePinger struct {
 	err error
 }
 
+// Ping returns the error the test configured, without touching a real database.
 func (f fakePinger) Ping(ctx context.Context) error {
 	return f.err
 }
 
+// TestRoutes checks that the router sends requests to the right place and
+// rejects the wrong method or an unknown path with the right status code.
 func TestRoutes(t *testing.T) {
 	handler := New(fakePinger{})
 
@@ -34,6 +38,8 @@ func TestRoutes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// httptest builds an in-memory request and records the response,
+			// so the handler runs without opening a real network port.
 			req := httptest.NewRequest(tt.method, tt.path, nil)
 			rec := httptest.NewRecorder()
 
@@ -46,6 +52,8 @@ func TestRoutes(t *testing.T) {
 	}
 }
 
+// TestHealthCheck checks the /healthz status code and JSON body for both a
+// reachable and an unreachable database.
 func TestHealthCheck(t *testing.T) {
 	tests := []struct {
 		name       string

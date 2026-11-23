@@ -1,12 +1,14 @@
+# sqlc config: generates type-safe Go code from plain SQL.
+# Run `sqlc generate` from the backend directory after changing the schema or queries.
 version: "2"
 sql:
   - engine: "postgresql"
-    schema: "db/migrations"
-    queries: "db/queries"
+    schema: "db/migrations"   # table definitions are read from the goose migrations
+    queries: "db/queries"     # annotated queries that become Go methods
     gen:
       go:
         package: "db"
-        out: "internal/db"
-        sql_package: "pgx/v5"
-        emit_json_tags: true
-        emit_empty_slices: true
+        out: "internal/db"     # generated code goes here; don't edit it by hand
+        sql_package: "pgx/v5"  # use pgx types/driver instead of database/sql
+        emit_json_tags: true   # add `json:"..."` tags to generated structs
+        emit_empty_slices: true # :many queries return [] rather than nil when no rows match
